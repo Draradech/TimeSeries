@@ -2,8 +2,8 @@
 #include "DataSource.h"
 #include "Image.h"
 
-//graph width xmax xres xminor xmajor height ymax yres yminor ymajor source1 name color ... sourceN name color target
-//graph 1440 $(date +%s) 1m 30m 2h 500 35.0 0.1 1.0 5.0 innen.1m.log Innen ff0000 aussen.1m.log Aussen 0080ff temp.1d.pnm
+//graphlog width xmax xres xminor xmajor height ymin ymax source1 name color ... sourceN name color target
+//graphlog 1440 $(date +%s) 1m 30m 2h 500 100.0 20000.0 power.1m.log Leistung ff0000 temp.1d.pnm
 
 #define minorgrid 60, 60, 60
 #define majorgrid 90, 90, 90
@@ -31,14 +31,14 @@ uint32_t readTime(char* str)
 
 int main(int argc, char *argv[])
 {
-   assert(argc >= 15);
-   assert(argc % 3 == 0);
-   
-   uint16_t ml = 30;
+   assert(argc >= 13);
+   assert((argc + 2) % 3 == 0);
+
+   uint16_t ml = 35;
    uint16_t mr = 10;
    uint16_t mt = 20;
    uint16_t mb = 20;
-   
+
    uint16_t width = atoi(argv[1]);
    uint32_t xmax = atoi(argv[2]);
    uint32_t xres = readTime(argv[3]);
@@ -47,22 +47,20 @@ int main(int argc, char *argv[])
    uint32_t xmajor = atoi(argv[5]);
    char xmajormode = argv[5][strlen(argv[5])-1];
    uint16_t height = atoi(argv[6]);
-   double ymax = atof(argv[7]);
-   double yres = atof(argv[8]);
-   double yminor = atof(argv[9]);
-   double ymajor = atof(argv[10]);
-   
-   uint8_t numSources = (argc - 12) / 3;
+   double ymin = atof(argv[7]);
+   double ymax = atof(argv[8]);
+
+   uint8_t numSources = (argc - 10) / 3;
    uint16_t legendLen = 0;
    for(uint8_t i = 0; i < numSources; ++i)
    {
-      uint8_t len = strlen(argv[12 + 3 * i]);
+      uint8_t len = strlen(argv[10 + 3 * i]);
       if(len > 0) legendLen += len + 2;
    }
    legendLen -= 2;
-   
+
    Image img(ml + width + mr, mt + height + mb);
-   
+
    // adjust xmax to match resolution
    xmax -= xmax % xres;
 
@@ -70,17 +68,20 @@ int main(int argc, char *argv[])
    // Draw grid and numbers  //
    ////////////////////////////
    char buf[16];
-   for(uint16_t y = 0; y <= height; ++y)
+   double lymin = log10(ymin);
+   double lymax = log10(ymax);
+   double lyres = height/(lymax - lymin);
+   for(double y = pow(10.0,(int)lymin); y <= ymax; y *= 10.0)
    {
-      double dy = ymax + (- height + y) * yres;
-      if(fabs(remainder(dy, ymajor)) < yres / 2)
+      for(double y2 = 2.0 * y; y2 < 10.0 * y; y2 += y)
       {
-         ;
-      }
-      else if(fabs(remainder(dy, yminor)) < yres / 2)
-      {
-         img.setColor(minorgrid);
-         img.drawLine(ml, mt + height - y, ml + width, mt + height - y);
+         double ly = log10(y2);
+         double py = ((ly - lymin) * lyres);
+         if(py >= 0.0 && py <= height)
+         {
+            img.setColor(minorgrid);
+            img.drawLine(ml, mt + height - py, ml + width, mt + height - py);
+         }
       }
    }
    int xminorcurrent = -1;
@@ -168,35 +169,36 @@ int main(int argc, char *argv[])
          }
       }
    }
-   for(uint16_t y = 0; y <= height; ++y)
+   for(double y = pow(10.0,(int)lymin); y <= ymax; y *= 10.0)
    {
-      double dy = ymax + (- height + y) * yres;
-      if(fabs(remainder(dy, ymajor)) < yres / 2)
+      double ly = log10(y);
+      double py = ((ly - lymin) * lyres);
+      if(py >= 0.0 && py <= height)
       {
          img.setColor(majorgrid);
-         img.drawLine(ml, mt + height - y, ml + width, mt + height - y);
-         sprintf(buf, "%.0lf", dy);
-         img.print(ml - 3, mt + height - y + 3, buf, ALIGN_R);
+         img.drawLine(ml, mt + height - py, ml + width, mt + height - py);
+         sprintf(buf, "%.0lf", y);
+         img.print(ml - 3, mt + height - py + 3, buf, ALIGN_R);
       }
    }
-   
+
    ////////////////////////////
    // Draw graphs and legend //
    ////////////////////////////
-   double ymin = ymax - height * yres;
+
    uint16_t legendPos = width / 2 - legendLen / 2 * 6;
    for(uint8_t i = 0; i < numSources; ++i)
    {
-      DataSource ds(argv[11 + 3 * i]);
-      uint32_t c = strtol(argv[13 + 3 * i], NULL, 16);
+      DataSource ds(argv[9 + 3 * i]);
+      uint32_t c = strtol(argv[11 + 3 * i], NULL, 16);
       uint8_t r = (c & 0xff0000) >> 16;
       uint8_t g = (c & 0xff00) >> 8;
       uint8_t b = (c & 0xff);
       img.setColor(r, g, b);
-      uint8_t len = strlen(argv[12 + 3 * i]);
+      uint8_t len = strlen(argv[10 + 3 * i]);
       if(len > 0)
       {
-         img.print(legendPos + ml, mt - 4, argv[12 + 3 * i]);
+         img.print(legendPos + ml, mt - 4, argv[10 + 3 * i]);
          legendPos += (len + 2) * 6;
       }
       uint32_t txOld = 0;
@@ -217,13 +219,15 @@ int main(int argc, char *argv[])
             )
          {
             //printf("%u: %lf\n", ds.getCurrentTimestamp(), val);
+            double plval = (log10(val) - lymin) * lyres;
+            double plvalOld = (log10(valOld) - lymin) * lyres;
             if(tx - txOld < 2 * xres)
             {
-               img.drawLine(ml + x, mt + height - (valOld - ymin) / yres, ml + x, mt + height - (val - ymin) / yres);
+               img.drawLine(ml + x, mt + height - plvalOld, ml + x, mt + height - plval);
             }
             else
             {
-               img.setPixel(ml + x, mt + height - (val - ymin) / yres);
+               img.setPixel(ml + x, mt + height - plval);
             }
             txOld = tx;
             valOld = val;
