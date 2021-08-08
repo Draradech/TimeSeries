@@ -84,6 +84,7 @@ Image::~Image()
 
 void Image::setPixel(uint16_t x, uint16_t y)
 {
+   if(x>=width||x<0||y>=height||y<0) return;
    data[x + y * width] = c;
 }
 

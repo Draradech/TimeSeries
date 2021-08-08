@@ -177,7 +177,18 @@ int main(int argc, char *argv[])
       {
          img.setColor(majorgrid);
          img.drawLine(ml, mt + height - py, ml + width, mt + height - py);
-         sprintf(buf, "%.0lf", y);
+         if(ymax < 10)
+         {
+            sprintf(buf, "%.2lf", y);
+         }
+         else if(ymax < 100)
+         {
+            sprintf(buf, "%.1lf", y);
+         }
+         else
+         {
+            sprintf(buf, "%.0lf", y);
+         }
          img.print(ml - 3, mt + height - py + 3, buf, ALIGN_R);
       }
    }
@@ -189,7 +200,6 @@ int main(int argc, char *argv[])
    uint16_t legendPos = width / 2 - legendLen / 2 * 6;
    for(uint8_t i = 0; i < numSources; ++i)
    {
-      DataSource ds(argv[9 + 3 * i]);
       uint32_t c = strtol(argv[11 + 3 * i], NULL, 16);
       uint8_t r = (c & 0xff0000) >> 16;
       uint8_t g = (c & 0xff00) >> 8;
@@ -201,6 +211,8 @@ int main(int argc, char *argv[])
          img.print(legendPos + ml, mt - 4, argv[10 + 3 * i]);
          legendPos += (len + 2) * 6;
       }
+      if(access(argv[9 + 3 * i], F_OK) != 0) continue;
+      DataSource ds(argv[9 + 3 * i]);
       uint32_t txOld = 0;
       double valOld = 0;
       for(uint16_t x = 0; x <= width; ++x)

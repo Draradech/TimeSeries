@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
    assert(argc >= 15);
    assert(argc % 3 == 0);
    
-   uint16_t ml = 30;
+   uint16_t ml = 35;
    uint16_t mr = 10;
    uint16_t mt = 20;
    uint16_t mb = 20;
@@ -168,6 +168,7 @@ int main(int argc, char *argv[])
          }
       }
    }
+   double ymin = ymax - height * yres;
    for(uint16_t y = 0; y <= height; ++y)
    {
       double dy = ymax + (- height + y) * yres;
@@ -175,7 +176,18 @@ int main(int argc, char *argv[])
       {
          img.setColor(majorgrid);
          img.drawLine(ml, mt + height - y, ml + width, mt + height - y);
-         sprintf(buf, "%.0lf", dy);
+         if(ymax < 10 && ymin > -10)
+         {
+            sprintf(buf, "%.2lf", dy);
+         }
+         else if(ymax < 100 && ymin > -100)
+         {
+            sprintf(buf, "%.1lf", dy);
+         }
+         else
+         {
+            sprintf(buf, "%.0lf", dy);
+         }
          img.print(ml - 3, mt + height - y + 3, buf, ALIGN_R);
       }
    }
@@ -183,11 +195,9 @@ int main(int argc, char *argv[])
    ////////////////////////////
    // Draw graphs and legend //
    ////////////////////////////
-   double ymin = ymax - height * yres;
    uint16_t legendPos = width / 2 - legendLen / 2 * 6;
    for(uint8_t i = 0; i < numSources; ++i)
    {
-      DataSource ds(argv[11 + 3 * i]);
       uint32_t c = strtol(argv[13 + 3 * i], NULL, 16);
       uint8_t r = (c & 0xff0000) >> 16;
       uint8_t g = (c & 0xff00) >> 8;
@@ -199,6 +209,8 @@ int main(int argc, char *argv[])
          img.print(legendPos + ml, mt - 4, argv[12 + 3 * i]);
          legendPos += (len + 2) * 6;
       }
+      if(access(argv[11 + 3 * i], F_OK) != 0) continue;
+      DataSource ds(argv[11 + 3 * i]);
       uint32_t txOld = 0;
       double valOld = 0;
       for(uint16_t x = 0; x <= width; ++x)

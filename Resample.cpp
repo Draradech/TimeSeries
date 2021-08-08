@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
          break;
    }
    assert(samplerate != 0);
-   
+
    uint8_t method = 0;
    if(strcmp(argv[2], "avg") == 0)
    {
@@ -40,13 +40,16 @@ int main(int argc, char *argv[])
       method = METHOD_MAX;
    }
    assert(method != 0);
-   
+
    uint16_t required = atoi(argv[3]);
    assert(required > 0);
 
+   if(access(argv[4], F_OK) != 0) return -1;
    DataSource ds(argv[4]);
+   if((ds.getLastTimestamp() - ds.getCurrentTimestamp()) / samplerate <= 10) return -1;
+
    DataTarget dt(argv[5], samplerate);
-   
+
    uint32_t nextEntry = dt.getNextTimestamp();
    if(nextEntry == 0)
    {
@@ -59,9 +62,8 @@ int main(int argc, char *argv[])
       ds.seekTimestamp(nextEntry);
       if(ds.getCurrentTimestamp() < nextEntry) ds.next();
    }
-   
+
    // Now ds is at first sample for nextEntrys time period (if there are samples), dt is prepared to recieve samples
-   
    while(ds.getLastTimestamp() >= nextEntry + samplerate)
    {
       uint16_t samples = 0;
@@ -104,4 +106,3 @@ int main(int argc, char *argv[])
       nextEntry += samplerate;
    }
 }
-
